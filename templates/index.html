@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- スマホ対応の基本設定 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>市ヶ谷 → 溜池山王 → 鎌倉 電車検索</title>
+    <style>
+      :root {
+        font-size: 16px;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 16px;
+        box-sizing: border-box;
+        background: #f5f5f5;
+      }
+
+      h1 {
+        font-size: 1.3rem;
+        margin-bottom: 0.8rem;
+        text-align: center;
+      }
+
+      .control-panel {
+        background: #ffffff;
+        padding: 12px;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .field-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1 1 160px;
+      }
+
+      label {
+        font-size: 0.9rem;
+        white-space: nowrap;
+      }
+
+      input[type="number"] {
+        width: 80px;
+        padding: 6px 8px;
+        font-size: 0.95rem;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        box-sizing: border-box;
+      }
+
+      #search-btn {
+        padding: 8px 16px;
+        font-size: 0.95rem;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        background: #007bff;
+        color: #fff;
+        flex-shrink: 0;
+      }
+
+      #search-btn:active {
+        opacity: 0.8;
+      }
+
+      #info {
+        font-size: 0.8rem;
+        margin: 8px 0;
+        color: #555;
+      }
+
+      #routes {
+        margin-top: 8px;
+      }
+
+      .route-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      }
+
+      .route-card h2 {
+        margin: 0 0 6px;
+        font-size: 1rem;
+      }
+
+      /* メインの時間表示を大きく */
+      .route-main {
+        margin: 4px 0 6px;
+        font-size: 1.05rem;
+        font-weight: 600;
+      }
+
+      .route-main .time {
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
+
+      /* 補足情報は少し小さめ＆グレー */
+      .route-meta {
+        font-size: 0.85rem;
+        margin: 2px 0;
+        color: #666;
+      }
+
+      .transfer-title {
+        margin-top: 6px;
+        font-size: 0.85rem;
+        font-weight: bold;
+      }
+
+      .transfer {
+        margin-left: 8px;
+        font-size: 0.8rem;
+        margin-top: 2px;
+      }
+
+      @media (max-width: 600px) {
+        body {
+          padding: 12px;
+        }
+
+        h1 {
+          font-size: 1.1rem;
+        }
+
+        .control-panel {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .field-group {
+          width: 100%;
+          justify-content: space-between;
+        }
+
+        #search-btn {
+          width: 100%;
+          text-align: center;
+        }
+
+        .route-main .time {
+          font-size: 1.3rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>市ヶ谷 → 溜池山王 → 鎌倉（次の電車候補）</h1>
+
+    <div class="control-panel">
+      <div class="field-group">
+        <label for="max-offset">今から何分後までの電車を見る？</label>
+        <input id="max-offset" type="number" min="0" max="60" value="3" />
+        <span>分後</span>
+      </div>
+      <button id="search-btn">検索する</button>
+    </div>
+
+    <p id="info"></p>
+    <div id="routes"></div>
+
+    <script>
+      document
+        .getElementById("search-btn")
+        .addEventListener("click", async () => {
+          const info = document.getElementById("info");
+          const routesDiv = document.getElementById("routes");
+          const maxOffsetInput = document.getElementById("max-offset");
+
+          let maxOffset = parseInt(maxOffsetInput.value, 10);
+          if (isNaN(maxOffset) || maxOffset < 0) maxOffset = 0;
+          if (maxOffset > 60) maxOffset = 60;
+
+          info.textContent = "検索中...";
+          routesDiv.innerHTML = "";
+
+          try {
+            const res = await fetch(`/api/routes?max_offset=${maxOffset}`);
+            if (!res.ok) {
+              info.textContent = `HTTPエラー: ${res.status}`;
+              return;
+            }
+            const data = await res.json();
+
+            if (data.error) {
+              info.textContent = "エラー: " + data.error;
+              console.log(data.raw);
+              return;
+            }
+
+            info.textContent =
+              `検索時刻: ${data.search_time_jst} / ` +
+              `出発基準: ${data.departure_base_jst} / ` +
+              `今から${data.max_offset_minutes}分後の便を表示`;
+
+            if (!data.routes || data.routes.length === 0) {
+              routesDiv.innerHTML = "<p>候補が見つかりませんでした。</p>";
+              return;
+            }
+
+            data.routes.forEach((r, i) => {
+              const card = document.createElement("div");
+              card.className = "route-card";
+
+              const header = document.createElement("h2");
+              header.textContent = `候補 ${i + 1}`;
+              card.appendChild(header);
+
+              // 大きい時間表示
+              const mainLine = document.createElement("p");
+              mainLine.className = "route-main";
+              mainLine.innerHTML =
+                `出発 <span class="time">${r.departure_time}</span>` +
+                ` → 到着 <span class="time">${r.arrival_time}</span>`;
+              card.appendChild(mainLine);
+
+              // 所要時間＋料金（補足）
+              const meta2 = document.createElement("p");
+              meta2.className = "route-meta";
+              meta2.textContent = `所要時間: ${r.total_duration} / 料金: ${r.fare}`;
+              card.appendChild(meta2);
+
+              const transferTitle = document.createElement("p");
+              transferTitle.className = "transfer-title";
+              transferTitle.textContent = "乗り換え";
+              card.appendChild(transferTitle);
+
+              if (!r.transfers || r.transfers.length === 0) {
+                const p = document.createElement("p");
+                p.className = "transfer";
+                p.textContent = "乗り換え情報なし（徒歩やバスのみの可能性）";
+                card.appendChild(p);
+              } else {
+                r.transfers.forEach((t) => {
+                  const p = document.createElement("p");
+                  p.className = "transfer";
+                  p.textContent =
+                    `${t.from} → ${t.to}（${t.line} / ` +
+                    `${t.departure} 発 → ${t.arrival} 着）`;
+                  card.appendChild(p);
+                });
+              }
+
+              routesDiv.appendChild(card);
+            });
+          } catch (e) {
+            info.textContent = "通信エラーが発生しました";
+            console.error(e);
+          }
+        });
+    </script>
+  </body>
+</html>
