@@ -35,19 +35,19 @@ TIMETABLE = {
     "ichigaya_tameike": {
         "from": "市ヶ谷",
         "to": "溜池山王",
-        "line": "（例）有楽町線→南北線",
+        "line": "有楽町線→南北線",
         "trains": load_timetable("ichigaya_tameike.csv"),
     },
     "tameike_shimbashi": {
         "from": "溜池山王",
         "to": "新橋",
-        "line": "（例）銀座線",
+        "line": "銀座線",
         "trains": load_timetable("tameike_shimbashi.csv"),
     },
     "shimbashi_kamakura": {
         "from": "新橋",
         "to": "鎌倉",
-        "line": "（例）横須賀線",
+        "line": "横須賀線",
         "trains": load_timetable("shimbashi_kamakura.csv"),
     },
 }
