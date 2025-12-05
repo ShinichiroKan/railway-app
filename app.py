@@ -114,7 +114,7 @@ def debug_ichigaya():
 def api_routes():
     # クエリパラメータ max_offset（分）
     try:
-        max_offset = int(request.args.get("max_offset", 3))
+        max_offset = int(request.args.get("max_offset", 30))
     except ValueError:
         max_offset = 3
 
